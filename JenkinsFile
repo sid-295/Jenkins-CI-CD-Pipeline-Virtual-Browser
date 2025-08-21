@@ -1,0 +1,67 @@
+pipeline {
+    agent any
+    
+    environment {
+        SCANNER_HOME = tool 'sonar-scanner'
+    }
+
+    stages {
+        stage('Git-Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/sid-295/Vitual-Browser.git'
+            }
+        }
+
+        stage('Owasp-Dependency-Check') {
+            steps {
+                dependencyCheck additionalArguments: '--scan ./ --disableNodeAudit', odcInstallation: 'Dc'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+
+        stage('SonarQube') {
+            steps {
+                withSonarQubeEnv('sonar') {
+                    sh '''$SCANNER_HOME/bin/sonar-scanner \
+                        -Dsonar.projectKey=VirtualBrowser \
+                        -Dsonar.projectName=VirtualBrowser'''
+                }
+            }
+        }
+
+        stage('Docker Build Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'dockerhub', toolName: 'Docker') {
+                        dir("${WORKSPACE}/.docker/firefox") {
+                            sh "docker build -t cyber295/wb:latest ."
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Trivy Docker Scanner') {
+            steps {
+                sh "trivy image cyber295/wb:latest"
+            }
+        }
+
+        stage('Docker Push Image') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+                    sh "docker login -u $DOCKERHUB_USER -p $DOCKERHUB_PASS"
+                    sh "docker push cyber295/wb:latest"
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                dir("${WORKSPACE}") {
+                    sh "docker-compose up -d"
+                }
+            }
+        }
+    }
+}
