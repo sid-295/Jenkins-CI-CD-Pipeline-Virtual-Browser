@@ -7,13 +7,13 @@ ARG SRC_URL="https://download.mozilla.org/?product=firefox-latest&os=linux64&lan
 # install firefox
 RUN set -eux; apt-get update; \
     apt-get install -y --no-install-recommends openbox \
-    xz-utils bzip2 libgtk-3-0 libdbus-glib-1-2; \
+    xz-utils libgtk-3-0 libdbus-glib-1-2; \
     #
-    # fetch latest release
-    wget -O /tmp/firefox-setup.tar.bz2 "${SRC_URL}"; \
+    # fetch latest release (now .tar.xz)
+    wget -O /tmp/firefox-setup.tar.xz "${SRC_URL}"; \
     mkdir /usr/lib/firefox; \
-    tar -xjf /tmp/firefox-setup.tar.bz2 -C /usr/lib; \
-    rm -f /tmp/firefox-setup.tar.bz2; \
+    tar -xJf /tmp/firefox-setup.tar.xz -C /usr/lib; \
+    rm -f /tmp/firefox-setup.tar.xz; \
     ln -s /usr/lib/firefox/firefox /usr/bin/firefox; \
     #
     # create a profile directory
@@ -21,12 +21,12 @@ RUN set -eux; apt-get update; \
     chown -R neko:neko /home/neko/.mozilla/firefox/profile.default; \
     #
     # clean up
-    apt-get --purge autoremove -y xz-utils bzip2; \
+    apt-get --purge autoremove -y xz-utils; \
     apt-get clean -y; \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 #
-# copy configuation files
+# copy configuration files
 COPY supervisord.conf /etc/neko/supervisord/firefox.conf
 COPY neko.js /usr/lib/firefox/mozilla.cfg
 COPY autoconfig.js /usr/lib/firefox/defaults/pref/autoconfig.js
